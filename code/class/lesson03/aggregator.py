@@ -14,54 +14,91 @@ DATA_DIR = '../../../data/'
 
 def download_series(base_url, extension, limit):
     """
-    download a series of files with incremental numberic suffix
-    @param str base_url  base url to download from
-    @param str extension  file format extension
-    @param int limit  how many files should be downloaded
-    @return list      list of file locations
+    download a series of files with incremental numeric suffix
+
+    @param str base_url     base url to download from
+    @param str extension    file format extension
+    @param int limit        how many files should be downloaded
+    @return list            list of file locations
     """
+    # Create an empty list to store the file locations in
     file_list = []
+    # for all numbers from 0 up to limit do the following
     for i in range(limit):
-        filename = urlparse(base_url).path.split('/')[-1] + str(i+1) + '.' + extension
-        print "Downloading %s..." % filename
-        urllib.urlretrieve(base_url + str(i+1) + '.' + extension, DATA_DIR + filename)
-        file_list.append(DATA_DIR + filename)
+        # build up the filename by cutting off the last part of the url, adding the
+        # number, and then appending the file extenstion
+        file_name = urlparse(base_url).path.split('/')[-1] + str(i+1) + '.' + extension
+        # build up the file's url by using the base_url, adding the number, and 
+        # then appending the file extenstion
+        file_url = base_url + str(i+1) + '.' + extension
+        # download the file from the file_url, save in DATA_DIR as file_name
+        urllib.urlretrieve(file_url, DATA_DIR + file_name)
+        # Inform the user the progress is being made
+        print "Downloading %s..." % file_name
+        # Add the file location to the list of downloaded CSVs
+        file_list.append(DATA_DIR + file_name)
+        
     return file_list
 
-def merge_csv(file_list, output):
-    fout=open(DATA_DIR + output,"a")
-    # first file:
-    for line in open(file_list[0]):
-        fout.write(line)
-    # now the rest:    
-    for file_name in file_list[1:]:
-        f = open(file_name)
-        f.next() # skip the header
-        for line in f:
-             fout.write(line)
-        f.close() 
-    fout.close()
-    return output
-
-def load_nytimes_dataset(n):
+def merge_csv(file_list, output, headers=True):
     """
-    request NYT datasets
-    @param int n     number of CSVs to obtain
-    @return list      list of CSVs
+    Merge a list of CSVs into one large CSV, expect headers
+
+    @param list file_list   list of CSVs to merge
+    @param str output       name of the output file
+    @param boolean headers  whether CSVs contain headers or not
+    @return str             location of output file
+    """
+    # open the output file for writing, as output_file
+    with open(DATA_DIR + output, 'a') as output_file:
+        # the first CSV might contain headers, so write every line
+        for line in open(file_list[0]):
+            # write each line into output_file
+            output_file.write(line)
+        # now the rest:    
+        for file_name in file_list[1:]:
+            # open the CSV file, as f
+            f = open(file_name)
+            # if the CSVs contain headers...
+            if headers:
+                # skip them, else continue
+                f.next()
+            # then write each line into the output_file again
+            for line in f:
+                 output_file.write(line)
+    
+    # return the ouput_file location
+    return DATA_DIR + output
+
+def load_nytimes_dataset():
+    """
+    Load NYT datasets into a Pandas DataFrame
+
+    @return DataFrame      DataFrame of NYT Impressions
     """
 
-    assert n < 32
-
+    # Check whether the seperate CSVs have already been
     if not os.path.isfile(DATA_DIR + 'nyt_agg.csv'):
+        # What base_url fo all files have in common?
         base_url = 'http://stat.columbia.edu/~rachel/datasets/nyt'
-        file_list = download_series(base_url, 'csv', n)
+        # Download the series of CSVs and store the file_list.
+        file_list = download_series(base_url, 'csv', 31)
+        # Merge the CSVs listed in the file_list into nyt_agg.csv
         merge_csv(file_list, 'nyt_agg.csv')
     
+    # read nyt_agg.csv into a pandas DataFrame
     df = pd.read_csv(DATA_DIR + 'nyt_agg.csv')
 
     return df
 
 def ratio(x,y):
+    """
+    Calculate the ratio of two numbers
+
+    @param int x    x value
+    @param int y    y value
+    @return float   ratio of x and y
+    """
     if y != 0:
         return x/y
     else:
