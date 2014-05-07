@@ -37,7 +37,7 @@ def download_series(base_url, extension, limit):
         print "Downloading %s..." % file_name
         # Add the file location to the list of downloaded CSVs
         file_list.append(DATA_DIR + file_name)
-        
+
     return file_list
 
 def merge_csv(file_list, output, headers=True):
@@ -91,25 +91,17 @@ def load_nytimes_dataset():
 
     return df
 
-def ratio(x,y):
-    """
-    Calculate the ratio of two numbers
+# Call the function which loads the NYT dataset into a DataFrame
+df = load_nytimes_dataset()
 
-    @param int x    x value
-    @param int y    y value
-    @return float   ratio of x and y
-    """
-    if y != 0:
-        return x/y
-    else:
-        return 0
+# Aggregate by 'Age','Gender','Signed_In' to summarise for the whole group.
+dfg = df.groupby(['Age','Gender','Signed_In'])
 
-def add_ratio(df,label,numerator,denominator):
-    df[label] = map(ratio, df[numerator], df[denominator])
-    return df
+# Find the mean for "Clicks", "Impressions", given the groupings 
+dfg = dfg["Clicks", "Impressions"].mean()
 
-# df = load_nytimes_dataset(31)
-   
-# df = add_ratio(df,'CTR', "Clicks", "Impressions")
+# Add a new column with the CTR
+dfg["CTR"] = dfg["Clicks"] / dfg["Impressions"]
 
-# df.to_csv('nytimes_aggregation.csv')
+# Only export the relevant data, CTR with indices.
+dfg["CTR"].to_csv(DATA_DIR + 'nytimes_agg_CTR.csv')
